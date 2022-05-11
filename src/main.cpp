@@ -2,11 +2,11 @@
 #include <ESP32Servo.h>
 #include <analogWrite.h>
 
+#define pwm 13
+#define in_1 12
+#define in_2 14
+#define servo_in 27
 Servo myservo;
-const int pwm = 13 ;	//initializing pin 2 as pwm
-const int in_1 = 12 ;
-const int in_2 = 14 ;
-const int servo_in = 27;
 const int motor_speed = 255/2;
 int val;
 // the setup function runs once when you press reset or power the board
