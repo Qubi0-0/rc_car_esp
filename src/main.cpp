@@ -11,7 +11,7 @@
 Servo myservo;
 const int motor_speed = 255/2;
 int val, duration, distance;
-float distance_const = 0.034/2;
+const float distance_const = 0.034/2;
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
