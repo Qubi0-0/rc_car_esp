@@ -11,6 +11,7 @@
 Servo myservo;
 const int motor_speed = 255/2;
 int val, duration, distance;
+float distance_const = 0.034/2;
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
@@ -68,7 +69,7 @@ delay(1000) ;                  // wait for a second
   // Reads the echoPin, returns the sound wave travel time in microseconds
   duration = pulseIn(echo, HIGH);
   // Calculating the distance
-  distance = duration * 0.034 / 2;
+  distance = duration * distance_const;
   // Prints the distance on the Serial Monitor
   Serial.print("Distance: ");
   Serial.println(distance);
