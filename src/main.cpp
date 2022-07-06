@@ -21,11 +21,7 @@ Servo myservo;
 String voice_command; 
 
 
-/*setting pwm of the motor to 255
-we can change the speed of rotaion
-by chaning pwm input but we are only
-using arduino so we are using higest
-value to driver the motor  */ 
+// PWM (0-255) - speed of motor
 const int motor_speed = 255/2;
 const float distance_const = 0.034/2;
 
@@ -64,15 +60,14 @@ void loop() {
     SerialBT.write(Serial.read());
   }
   if (SerialBT.available()) {
-
-    if (distance <= DISTANCE_TRESHOLD) { // Stop the RC car
-      digitalWrite(in_1,HIGH) ;
-      digitalWrite(in_2,HIGH) ;
-      }
-
-
     voice_command = SerialBT.read();
-      if (voice_command == "forward") {
+      if (distance <= DISTANCE_TRESHOLD) { // Stop the RC car
+        digitalWrite(in_1,HIGH) ;
+        digitalWrite(in_2,HIGH) ;
+        SerialBT.println("Car stopped due to block ahead");
+        }
+
+      else if (voice_command == "forward") {
         digitalWrite(in_1,HIGH) ;
         digitalWrite(in_2,LOW) ;
         analogWrite(pwm,motor_speed) ; }
@@ -91,7 +86,7 @@ void loop() {
         digitalWrite(in_2,HIGH) ;
       }
       else {
-        Serial.println("Unrecognized Command");
+        SerialBT.println("Unrecognized Command");
       }
 
   }
