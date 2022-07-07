@@ -266,6 +266,8 @@ void loop() {
             if(pChr) {
               voice_command = pChr->getValue().c_str();
               Serial.println(voice_command);
+
+              
               if (distance <= DISTANCE_TRESHOLD) { // Stops the RC car if too near obstacle
               digitalWrite(in_1,LOW) ;
               digitalWrite(in_2,LOW) ; 
