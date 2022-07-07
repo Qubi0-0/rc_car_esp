@@ -9,11 +9,11 @@
 #define servo_in 27
 #define echo 25
 #define trig 26
-#define DISTANCE_TRESHOLD 0.5
+#define DISTANCE_TRESHOLD 0.1
 
 
 // PWM (0-255) - speed of motor
-const int motor_speed = 255/2;
+const int motor_speed = 255/3;
 const float distance_const = 0.034/2;
 
 int servo_position, duration, distance;
@@ -153,7 +153,7 @@ void setup() {
   Serial.println("Starting NimBLE Server");
 
     /** sets device name */
-    NimBLEDevice::init("NimBLE-Arduino");
+    NimBLEDevice::init("RC_Car");
 
     /** Optional: set the transmit power, default is 3db */
     NimBLEDevice::setPower(ESP_PWR_LVL_P9); /** +9db */
@@ -265,9 +265,8 @@ void loop() {
             NimBLECharacteristic* pChr = pSvc->getCharacteristic("F00D");
             if(pChr) {
               voice_command = pChr->getValue().c_str();
-
+              pChr->setValue("No Command");
               Serial.println(voice_command);
-
 
               if (distance <= DISTANCE_TRESHOLD) { // Stops the RC car if too near obstacle
               digitalWrite(in_1,LOW) ;
@@ -281,21 +280,25 @@ void loop() {
                 }
               else if (voice_command == "left" || voice_command == "Left") {
                 myservo.write(servo_position = 120);
-                delay(20);
+                delay(100);
                 digitalWrite(in_1,HIGH) ;
                 digitalWrite(in_2,LOW) ;
                 }
               else if (voice_command == "right" || voice_command == "Right") {
                 myservo.write(servo_position = 60);
-                delay(20);
+                delay(100);
                 digitalWrite(in_1,HIGH) ;
                 digitalWrite(in_2,LOW) ;
                 }
               else if (voice_command == "backward" || voice_command == "Backward") {
+                myservo.write(servo_position = 90);
+                delay(100);
                 digitalWrite(in_1,LOW) ;
                 digitalWrite(in_2,HIGH) ;
               }
               else if (voice_command == "stop" || voice_command == "Stop") {
+                myservo.write(servo_position = 90);
+                delay(100);
                 digitalWrite(in_1,LOW) ;
                 digitalWrite(in_2,LOW) ;
               }
@@ -303,9 +306,10 @@ void loop() {
           } 
     }
 
-  delay(2000);
+  delay(3000);
   digitalWrite(in_2,LOW) ; 
   digitalWrite(in_1,LOW) ;
- 
+  myservo.write(servo_position = 90);
+
 
 }
