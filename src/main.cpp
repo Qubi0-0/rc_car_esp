@@ -3,44 +3,36 @@
 #include <analogWrite.h>
 #include <NimBLEDevice.h>
 
-#define pwm 13
-#define in_1 12
-#define in_2 14
-#define servo_in 27
-#define echo 25
-#define trig 26
-#define DISTANCE_TRESHOLD 0.1
-
+#define PWM 13
+#define MOTOR_IN_1 12
+#define MOTOR_IN_2 14
+#define SERVO_IN 27
+#define ECHO 25
+#define TRIG 26
+#define DISTANCE_TRESHOLD 20 // cm
+#define EXE_INTERVAL 5000
 
 // PWM (0-255) - speed of motor
 const int motor_speed = 255/3;
 const float distance_const = 0.034/2;
 
+
+unsigned long lastExecutedMillis = 0; 
 int servo_position, duration, distance;
 
 static NimBLEServer* pServer;
 
-/**  None of these are required as they will be handled by the library with defaults. **
- **                       Remove as you see fit for your needs                        */  
 class ServerCallbacks: public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) {
         Serial.println("Client connected");
         Serial.println("Multi-connect support: start advertising");
         NimBLEDevice::startAdvertising();
     };
-    /** Alternative onConnect() method to extract details of the connection. 
-     *  See: src/ble_gap.h for the details of the ble_gap_conn_desc struct.
-     */  
+
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) {
         Serial.print("Client address: ");
         Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
-        /** We can use the connection handle here to ask for different connection parameters.
-         *  Args: connection handle, min connection interval, max connection interval
-         *  latency, supervision timeout.
-         *  Units; Min/Max Intervals: 1.25 millisecond increments.
-         *  Latency: number of intervals allowed to skip.
-         *  Timeout: 10 millisecond increments, try for 5x interval time for best results.  
-         */
+
         pServer->updateConnParams(desc->conn_handle, 24, 48, 0, 60);
     };
     void onDisconnect(NimBLEServer* pServer) {
@@ -51,13 +43,9 @@ class ServerCallbacks: public NimBLEServerCallbacks {
         Serial.printf("MTU updated: %u for connection ID: %u\n", MTU, desc->conn_handle);
     };
     
-/********************* Security handled here **********************
-****** Note: these are the same return values as defaults ********/
     uint32_t onPassKeyRequest(){
         Serial.println("Server Passkey Request");
-        /** This should return a random 6 digit number for security 
-         *  or make your own static passkey as done here.
-         */
+
         return 123456; 
     };
 
@@ -142,12 +130,12 @@ NimBLECharacteristicCallbacks Character;
 
 void setup() {
   Serial.begin(115200);
-  pinMode(pwm,OUTPUT) ;  	//we have to set PWM pin as output
-  pinMode(in_1,OUTPUT) ; 	//Logic pins are also set as output
-  pinMode(in_2,OUTPUT) ;  // Sets 
-  pinMode(trig, OUTPUT); // Sets the trigPin as an OUTPUT
-  pinMode(echo, INPUT); // Sets the echoPin as an INPUT
-  myservo.attach(servo_in);
+  pinMode(PWM,OUTPUT) ;  	//we have to set PWM pin as output
+  pinMode(MOTOR_IN_1,OUTPUT) ; 	//Logic pins are also set as output
+  pinMode(MOTOR_IN_2,OUTPUT) ;  // Sets 
+  pinMode(TRIG, OUTPUT); // Sets the TRIGPin as an OUTPUT
+  pinMode(ECHO, INPUT); // Sets the ECHOPin as an INPUT
+  myservo.attach(SERVO_IN);
 // BLE CONFIG
 
   Serial.println("Starting NimBLE Server");
@@ -158,20 +146,6 @@ void setup() {
     /** Optional: set the transmit power, default is 3db */
     NimBLEDevice::setPower(ESP_PWR_LVL_P9); /** +9db */
     
-    /** Set the IO capabilities of the device, each option will trigger a different pairing method.
-     *  BLE_HS_IO_DISPLAY_ONLY    - Passkey pairing
-     *  BLE_HS_IO_DISPLAY_YESNO   - Numeric comparison pairing
-     *  BLE_HS_IO_NO_INPUT_OUTPUT - DEFAULT setting - just works pairing
-     */
-    //NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY); // use passkey
-    //NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO); //use numeric comparison
-
-    /** 2 different ways to set security - both calls achieve the same result.
-     *  no bonding, no man in the middle protection, secure connections.
-     *   
-     *  These are the default values, only shown here for demonstration.   
-     */ 
-    //NimBLEDevice::setSecurityAuth(false, false, true); 
     NimBLEDevice::setSecurityAuth(/*BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM |*/ BLE_SM_PAIR_AUTHREQ_SC);
 
     pServer = NimBLEDevice::createServer();
@@ -190,11 +164,6 @@ void setup() {
     pBeefCharacteristic->setValue("Burger");
     pBeefCharacteristic->setCallbacks(&chrCallbacks);
 
-    /** 2904 descriptors are a special case, when createDescriptor is called with
-     *  0x2904 a NimBLE2904 class is created with the correct properties and sizes.
-     *  However we must cast the returned reference to the correct type as the method
-     *  only returns a pointer to the base NimBLEDescriptor class.
-     */
     NimBLE2904* pBeef2904 = (NimBLE2904*)pBeefCharacteristic->createDescriptor("2904"); 
     pBeef2904->setFormat(NimBLE2904::FORMAT_UTF8);
   
@@ -209,10 +178,6 @@ void setup() {
 
     pFoodCharacteristic->setValue("Fries");
     pFoodCharacteristic->setCallbacks(&chrCallbacks);
-
-    /** Note a 0x2902 descriptor MUST NOT be created as NimBLE will create one automatically
-     *  if notification or indication properties are assigned to a characteristic.
-     */
 
     /** Custom descriptor: Arguments are UUID, Properties, max length in bytes of the value */
     NimBLEDescriptor* pC01Ddsc = pFoodCharacteristic->createDescriptor(
@@ -232,29 +197,28 @@ void setup() {
     /** Add the services to the advertisment data **/
     pAdvertising->addServiceUUID(pDeadService->getUUID());
     pAdvertising->addServiceUUID(pBaadService->getUUID());
-    /** If your device is battery powered you may consider setting scan response
-     *  to false as it will extend battery life at the expense of less data sent.
-     */
+
     pAdvertising->setScanResponse(true);
     pAdvertising->start();
 
     Serial.println("Advertising Started");
 
     myservo.write(servo_position = 90);
-    analogWrite(pwm,motor_speed);
+    analogWrite(PWM,motor_speed);
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  // Clears the trigPin
-  digitalWrite(trig, LOW);
+  unsigned long currentMillis = millis();
+  // Clears the TRIGPin
+  digitalWrite(TRIG, LOW);
   delayMicroseconds(2);
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trig, HIGH);
+  // Sets the TRIGPin on HIGH state for 10 micro seconds
+  digitalWrite(TRIG, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echo, HIGH);
+  digitalWrite(TRIG, LOW);
+  // Reads the ECHOPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(ECHO, HIGH);
   // Calculating the distance
   distance = duration * distance_const;
 
@@ -269,47 +233,49 @@ void loop() {
               Serial.println(voice_command);
 
               if (distance <= DISTANCE_TRESHOLD) { // Stops the RC car if too near obstacle
-              digitalWrite(in_1,LOW) ;
-              digitalWrite(in_2,LOW) ; 
+              digitalWrite(MOTOR_IN_1,LOW) ;
+              digitalWrite(MOTOR_IN_2,LOW) ;
+ 
               }
               else if (voice_command == "forward" || voice_command == "Forward") {
                 myservo.write(servo_position = 90);
-                digitalWrite(in_1,HIGH) ;
-                digitalWrite(in_2,LOW) ;
-                analogWrite(pwm,motor_speed) ; 
+                digitalWrite(MOTOR_IN_1,HIGH) ;
+                digitalWrite(MOTOR_IN_2,LOW) ;
+                analogWrite(PWM,motor_speed) ; 
                 }
               else if (voice_command == "left" || voice_command == "Left") {
                 myservo.write(servo_position = 120);
                 delay(100);
-                digitalWrite(in_1,HIGH) ;
-                digitalWrite(in_2,LOW) ;
+                digitalWrite(MOTOR_IN_1,HIGH) ;
+                digitalWrite(MOTOR_IN_2,LOW) ;
                 }
               else if (voice_command == "right" || voice_command == "Right") {
                 myservo.write(servo_position = 60);
                 delay(100);
-                digitalWrite(in_1,HIGH) ;
-                digitalWrite(in_2,LOW) ;
+                digitalWrite(MOTOR_IN_1,HIGH) ;
+                digitalWrite(MOTOR_IN_2,LOW) ;
                 }
               else if (voice_command == "backward" || voice_command == "Backward") {
                 myservo.write(servo_position = 90);
                 delay(100);
-                digitalWrite(in_1,LOW) ;
-                digitalWrite(in_2,HIGH) ;
+                digitalWrite(MOTOR_IN_1,LOW) ;
+                digitalWrite(MOTOR_IN_2,HIGH) ;
               }
               else if (voice_command == "stop" || voice_command == "Stop") {
                 myservo.write(servo_position = 90);
                 delay(100);
-                digitalWrite(in_1,LOW) ;
-                digitalWrite(in_2,LOW) ;
+                digitalWrite(MOTOR_IN_1,LOW) ;
+                digitalWrite(MOTOR_IN_2,LOW) ;
               }
             }
           } 
     }
 
-  delay(3000);
-  digitalWrite(in_2,LOW) ; 
-  digitalWrite(in_1,LOW) ;
+  if (currentMillis - lastExecutedMillis >= EXE_INTERVAL) {
+  lastExecutedMillis = currentMillis; // save the last executed time
+  digitalWrite(MOTOR_IN_2,LOW) ; 
+  digitalWrite(MOTOR_IN_1,LOW) ;
   myservo.write(servo_position = 90);
-
+  }
 
 }
