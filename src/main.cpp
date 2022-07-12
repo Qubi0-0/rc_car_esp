@@ -53,7 +53,6 @@ class ServerCallbacks: public NimBLEServerCallbacks {
 
     bool onConfirmPIN(uint32_t pass_key){
         Serial.print("The passkey YES/NO number: ");Serial.println(pass_key);
-        /** Return false if passkeys don't match. */
         return true; 
     };
 
@@ -191,7 +190,6 @@ void setup() {
     analogWrite(PWM,motor_speed/3);
 }
 
-// the loop function runs over and over again forever
 void loop() {
   unsigned long currentMillis = millis();
   // Clears the TRIGPin
@@ -206,7 +204,6 @@ void loop() {
   // Calculating the distance
   distance = duration * distance_const;
 
-  /** Do your thing here, this just spams notifications to all connected clients */
     if(pServer->getConnectedCount()) {
         NimBLEService* pSvc = pServer->getServiceByUUID("BAAD");
         if(pSvc) {
