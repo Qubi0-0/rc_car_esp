@@ -10,7 +10,7 @@
 #define ECHO 25
 #define TRIG 26
 #define DISTANCE_TRESHOLD 20 // cm
-#define EXE_INTERVAL 4000
+#define EXE_INTERVAL 2600
 #define EXE_INTERVAL_2 2000
 // PWM (0-255) - speed of motor
 const int motor_speed = 255;
@@ -188,7 +188,7 @@ void setup() {
     Serial.println("Advertising Started");
 
     myservo.write(servo_position = 90);
-    analogWrite(PWM,motor_speed/2);
+    analogWrite(PWM,motor_speed/3);
 }
 
 // the loop function runs over and over again forever
@@ -217,7 +217,7 @@ void loop() {
               Serial.println(voice_command);
 
               if (distance <= DISTANCE_TRESHOLD) { // Stops the RC car if too near obstacle
-                lastExecutedMillis = currentMillis; // save the last executed time
+                
                 // Hitting the breaks
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,HIGH) ;
@@ -228,46 +228,53 @@ void loop() {
                 digitalWrite(MOTOR_IN_2,HIGH) ;
                 delay(1000);
                 // Motor off
+                lastExecutedMillis = currentMillis; // save the last executed time
                 digitalWrite(MOTOR_IN_1,LOW) ;
                 digitalWrite(MOTOR_IN_2,LOW) ; 
-                analogWrite(PWM,motor_speed/2) ;        
+                analogWrite(PWM,motor_speed/3) ;        
               }
               else if (voice_command == "forward" || voice_command == "Forward") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 90);
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
                 }
               else if (voice_command == "left" || voice_command == "Left") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 120);
                 delay(100);
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
                 }
               else if (voice_command == "right" || voice_command == "Right") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 60);
                 delay(100);
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
                 }
               else if (voice_command == "backward" || voice_command == "Backward") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 90);
                 delay(100);
                 digitalWrite(MOTOR_IN_1,LOW) ;
                 digitalWrite(MOTOR_IN_2,HIGH) ;
               }
               else if (voice_command == "stop" || voice_command == "Stop") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 90);
                 delay(100);
                 digitalWrite(MOTOR_IN_1,LOW) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
               }
                 else if (voice_command == "speed" || voice_command == "Speed") {
+                lastExecutedMillis = currentMillis; 
                 myservo.write(servo_position = 90);
                 delay(100);
                 analogWrite(PWM,motor_speed) ;              
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
-                analogWrite(PWM,motor_speed/2) ;
+                analogWrite(PWM,motor_speed/3) ;
               }
             }
           } 
