@@ -10,14 +10,16 @@
 #define ECHO 25
 #define TRIG 26
 #define DISTANCE_TRESHOLD 20 // cm
-#define EXE_INTERVAL 5000
-
+#define EXE_INTERVAL 4000
+#define EXE_INTERVAL_2 2000
 // PWM (0-255) - speed of motor
-const int motor_speed = 255/3;
+const int motor_speed = 255;
 const float distance_const = 0.034/2;
 
 
-unsigned long lastExecutedMillis = 0; 
+unsigned long lastExecutedMillis = 0;
+unsigned long lastExecutedMillis_2 = 0; 
+
 int servo_position, duration, distance;
 
 static NimBLEServer* pServer;
@@ -151,36 +153,20 @@ void setup() {
     pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
-    NimBLEService* pDeadService = pServer->createService("DEAD");
-    NimBLECharacteristic* pBeefCharacteristic = pDeadService->createCharacteristic(
-                                               "BEEF",
-                                               NIMBLE_PROPERTY::READ |
-                                               NIMBLE_PROPERTY::WRITE |
-                               /** Require a secure connection for read and write access */
-                                               NIMBLE_PROPERTY::READ_ENC |  // only allow reading if paired / encrypted
-                                               NIMBLE_PROPERTY::WRITE_ENC   // only allow writing if paired / encrypted
-                                              );
-  
-    pBeefCharacteristic->setValue("Burger");
-    pBeefCharacteristic->setCallbacks(&chrCallbacks);
-
-    NimBLE2904* pBeef2904 = (NimBLE2904*)pBeefCharacteristic->createDescriptor("2904"); 
-    pBeef2904->setFormat(NimBLE2904::FORMAT_UTF8);
-  
 
     NimBLEService* pBaadService = pServer->createService("BAAD");
-    NimBLECharacteristic* pFoodCharacteristic = pBaadService->createCharacteristic(
+    NimBLECharacteristic* pCarCharacteristic = pBaadService->createCharacteristic(
                                                "F00D",
                                                NIMBLE_PROPERTY::READ |
                                                NIMBLE_PROPERTY::WRITE |
                                                NIMBLE_PROPERTY::NOTIFY
                                               );
 
-    pFoodCharacteristic->setValue("Fries");
-    pFoodCharacteristic->setCallbacks(&chrCallbacks);
+    pCarCharacteristic->setValue("No Command");
+    pCarCharacteristic->setCallbacks(&chrCallbacks);
 
     /** Custom descriptor: Arguments are UUID, Properties, max length in bytes of the value */
-    NimBLEDescriptor* pC01Ddsc = pFoodCharacteristic->createDescriptor(
+    NimBLEDescriptor* pC01Ddsc = pCarCharacteristic->createDescriptor(
                                                "C01D",
                                                NIMBLE_PROPERTY::READ | 
                                                NIMBLE_PROPERTY::WRITE|
@@ -190,12 +176,10 @@ void setup() {
     pC01Ddsc->setValue("Send it back!");
 
     /** Start the services when finished creating all Characteristics and Descriptors */  
-    pDeadService->start();
     pBaadService->start();
 
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     /** Add the services to the advertisment data **/
-    pAdvertising->addServiceUUID(pDeadService->getUUID());
     pAdvertising->addServiceUUID(pBaadService->getUUID());
 
     pAdvertising->setScanResponse(true);
@@ -204,7 +188,7 @@ void setup() {
     Serial.println("Advertising Started");
 
     myservo.write(servo_position = 90);
-    analogWrite(PWM,motor_speed);
+    analogWrite(PWM,motor_speed/2);
 }
 
 // the loop function runs over and over again forever
@@ -233,15 +217,25 @@ void loop() {
               Serial.println(voice_command);
 
               if (distance <= DISTANCE_TRESHOLD) { // Stops the RC car if too near obstacle
-              digitalWrite(MOTOR_IN_1,LOW) ;
-              digitalWrite(MOTOR_IN_2,LOW) ;
- 
+                lastExecutedMillis = currentMillis; // save the last executed time
+                // Hitting the breaks
+                digitalWrite(MOTOR_IN_1,HIGH) ;
+                digitalWrite(MOTOR_IN_2,HIGH) ;
+                analogWrite(PWM,motor_speed/3) ; 
+                delayMicroseconds(100);
+                // Going backwards from the obstacle
+                digitalWrite(MOTOR_IN_1,LOW) ;
+                digitalWrite(MOTOR_IN_2,HIGH) ;
+                delay(1000);
+                // Motor off
+                digitalWrite(MOTOR_IN_1,LOW) ;
+                digitalWrite(MOTOR_IN_2,LOW) ; 
+                analogWrite(PWM,motor_speed/2) ;        
               }
               else if (voice_command == "forward" || voice_command == "Forward") {
                 myservo.write(servo_position = 90);
                 digitalWrite(MOTOR_IN_1,HIGH) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
-                analogWrite(PWM,motor_speed) ; 
                 }
               else if (voice_command == "left" || voice_command == "Left") {
                 myservo.write(servo_position = 120);
@@ -267,15 +261,23 @@ void loop() {
                 digitalWrite(MOTOR_IN_1,LOW) ;
                 digitalWrite(MOTOR_IN_2,LOW) ;
               }
+                else if (voice_command == "speed" || voice_command == "Speed") {
+                myservo.write(servo_position = 90);
+                delay(100);
+                analogWrite(PWM,motor_speed) ;              
+                digitalWrite(MOTOR_IN_1,HIGH) ;
+                digitalWrite(MOTOR_IN_2,LOW) ;
+                analogWrite(PWM,motor_speed/2) ;
+              }
             }
           } 
     }
 
   if (currentMillis - lastExecutedMillis >= EXE_INTERVAL) {
-  lastExecutedMillis = currentMillis; // save the last executed time
-  digitalWrite(MOTOR_IN_2,LOW) ; 
-  digitalWrite(MOTOR_IN_1,LOW) ;
-  myservo.write(servo_position = 90);
+    lastExecutedMillis = currentMillis; // save the last executed time
+    digitalWrite(MOTOR_IN_2,LOW) ; 
+    digitalWrite(MOTOR_IN_1,LOW) ;
+    myservo.write(servo_position = 90);
   }
 
 }
